@@ -95,10 +95,8 @@ struct RootView: View {
 
             // Connectivity-regain drain: queued writes leave the moment
             // the network returns, not the next time the user pokes us.
-            for await status in dependencies.connectivity.statusUpdates() {
-                if status == .online {
-                    await dependencies.outboxDrainer.drainNow()
-                }
+            for await status in dependencies.connectivity.statusUpdates() where status == .online {
+                await dependencies.outboxDrainer.drainNow()
             }
         }
         .onChange(of: scenePhase) { _, newPhase in

@@ -41,7 +41,8 @@ public enum DomainError: Error, Hashable, Sendable {
         case .invalidData:
             return "We received an unexpected response. Please try again shortly."
         case .pinningViolation:
-            return "We couldn't verify the secure connection to LoanPay. If you're on public Wi-Fi, switch to mobile data and try again."
+            return "We couldn't verify the secure connection to LoanPay. "
+                + "If you're on public Wi-Fi, switch to mobile data and try again."
         case .unknown:
             return "Something unexpected happened. Please try again."
         }

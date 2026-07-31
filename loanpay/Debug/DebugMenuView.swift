@@ -55,7 +55,8 @@ struct DebugMenuView: View {
                     // Honest UX: dependencies are wired once at launch;
                     // pretending a live switch works would leave half the
                     // object graph on the old backend.
-                    Text("Takes effect on the next launch. Start the server first: npx json-server db.json --port 3000 (see Scripts/mock-server).")
+                    Text("Takes effect on the next launch. Start the server first: "
+                        + "npx json-server db.json --port 3000 (see Scripts/mock-server).")
                 }
 
                 Section("Mock backend failures") {

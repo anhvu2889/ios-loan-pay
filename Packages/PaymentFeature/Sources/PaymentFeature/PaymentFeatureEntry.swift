@@ -12,7 +12,11 @@ import LoanPayFeatureKit
 public enum PaymentFeatureEntry: FeatureEntry {
     public static let featureID = "payment"
 
+    // A composition-root factory takes exactly the seams the feature needs
+    // — bundling them into a parameter struct would add a type whose only
+    // job is appeasing this rule at the one call site that exists.
     @MainActor
+    // swiftlint:disable:next function_parameter_count
     public static func makeFlowView(
         loanID: LoanID,
         loanRepository: any LoanRepository,

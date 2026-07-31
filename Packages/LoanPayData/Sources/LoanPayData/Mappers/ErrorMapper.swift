@@ -32,6 +32,10 @@ public enum ErrorMapper {
         }
     }
 
+    // The complexity IS the function: one exhaustive translation table from
+    // every transport dialect to the domain vocabulary. Splitting it into
+    // helpers would scatter the one place this mapping is allowed to live.
+    // swiftlint:disable:next cyclomatic_complexity
     public static func domainError(from error: any Error) -> DomainError {
         switch error {
         // WHY first: repositories sometimes throw domain errors directly

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+
+      - name: Secret scan
+        run: Scripts/secret-scan.sh
+
+      - name: SwiftLint
+        run: |
+          brew install swiftlint
+          swiftlint --strict --quiet
+
+      # Foundation-only packages run natively — no simulator tax.
+      - name: Domain tests
+        run: swift test --package-path Packages/LoanPayDomain
+
+      - name: Data tests
+        run: swift test --package-path Packages/LoanPayData
+
+      # Test-only package (no library product), so xcodebuild generates a
+      # "-Package" scheme rather than one matching the package name; running
+      # natively sidesteps the naming and the simulator both — the package
+      # declares macOS for exactly this.
+      - name: Rosetta (XCTest) tests
+        run: swift test --package-path Packages/LoanPayRosetta
+
+      - name: Resolve simulator
+        id: sim
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -E 'iPhone' | head -1 | grep -oE '[0-9A-F-]{36}')
+          echo "id=$DEVICE" >> "$GITHUB_OUTPUT"
+
+      - name: App + feature tests (simulator)
+        run: |
+          set -o pipefail
+          DEST="platform=iOS Simulator,id=${{ steps.sim.outputs.id }}"
+          xcodebuild test -project loanpay.xcodeproj -scheme loanpay \
+            -destination "$DEST" -only-testing:loanpayTests | tail -50
+          (cd Packages/PaymentFeature && xcodebuild test -scheme PaymentFeature -destination "$DEST" | tail -20)
+          (cd Packages/SupportFeature && xcodebuild test -scheme SupportFeature -destination "$DEST" | tail -20)
+
+      - name: Release audit
+        run: Scripts/release-audit.sh "platform=iOS Simulator,id=${{ steps.sim.outputs.id }}"

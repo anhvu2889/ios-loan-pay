@@ -74,7 +74,9 @@ public struct SupportCallbackView: View {
                 .font(.title2.bold())
             // Honest copy: queued ≠ delivered. The sync badge on the list
             // shows the request until it actually leaves the device.
-            Text("We've saved your request on this phone. It will be sent automatically — even if you're offline right now — and we'll call you back within one business day of receiving it.")
+            Text("We've saved your request on this phone. It will be sent automatically "
+                + "— even if you're offline right now — and we'll call you back "
+                + "within one business day of receiving it.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
