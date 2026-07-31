@@ -25,6 +25,8 @@
 
 /* Begin PBXBuildFile section */
 		AA0000000000000000000003 /* LoanPayDomain in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000002 /* LoanPayDomain */; };
+		AA0000000000000000000006 /* LoanPayData in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000005 /* LoanPayData */; };
+		AA0000000000000000000009 /* LoanPayFeatureKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000008 /* LoanPayFeatureKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,6 +59,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000000000000000000003 /* LoanPayDomain in Frameworks */,
+				AA0000000000000000000006 /* LoanPayData in Frameworks */,
+				AA0000000000000000000009 /* LoanPayFeatureKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +122,8 @@
 			name = loanpay;
 			packageProductDependencies = (
 				AA0000000000000000000002 /* LoanPayDomain */,
+				AA0000000000000000000005 /* LoanPayData */,
+				AA0000000000000000000008 /* LoanPayFeatureKit */,
 			);
 			productName = loanpay;
 			productReference = B8815366301C480800E23881 /* loanpay.app */;
@@ -203,6 +209,8 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AA0000000000000000000001 /* XCLocalSwiftPackageReference "Packages/LoanPayDomain" */,
+				AA0000000000000000000004 /* XCLocalSwiftPackageReference "Packages/LoanPayData" */,
+				AA0000000000000000000007 /* XCLocalSwiftPackageReference "Packages/LoanPayFeatureKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B8815367301C480800E23881 /* Products */;
@@ -554,12 +562,28 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/LoanPayDomain;
 		};
+		AA0000000000000000000004 /* XCLocalSwiftPackageReference "Packages/LoanPayData" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/LoanPayData;
+		};
+		AA0000000000000000000007 /* XCLocalSwiftPackageReference "Packages/LoanPayFeatureKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/LoanPayFeatureKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		AA0000000000000000000002 /* LoanPayDomain */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LoanPayDomain;
+		};
+		AA0000000000000000000005 /* LoanPayData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LoanPayData;
+		};
+		AA0000000000000000000008 /* LoanPayFeatureKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LoanPayFeatureKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 

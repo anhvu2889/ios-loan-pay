@@ -1,0 +1,14 @@
+{
+  "search_enabled": {
+    "enabled": true,
+    "owner": "growth",
+    "purpose": "Gates loan-list search while result ranking is validated with real usage.",
+    "removal": "Delete after search ships to 100% and survives one release train."
+  },
+  "payments_enabled": {
+    "enabled": true,
+    "owner": "payments",
+    "purpose": "Kill switch: turning this off puts the payment flow into a maintenance state within one flag propagation, no release needed.",
+    "removal": "Permanent. Kill switches are not tech debt; this one stays."
+  }
+}
