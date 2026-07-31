@@ -17,8 +17,8 @@ struct RootView: View {
     @State private var coordinator: AppCoordinator
     @State private var authFlow: AuthFlowCoordinator
     @State private var listViewModel: LoanListViewModel
+    @State private var dispatcher: DeepLinkDispatcher
     @State private var isDebugMenuPresented = false
-    @State private var paymentSheet: PaymentSheetContext?
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -28,9 +28,12 @@ struct RootView: View {
         // because these objects need `dependencies`. SwiftUI keeps the
         // FIRST value it sees for this view's identity; re-running init on
         // a re-render does not re-create them.
-        _coordinator = State(initialValue: AppCoordinator())
+        _coordinator = State(initialValue: AppCoordinator(logger: dependencies.logger))
         _authFlow = State(initialValue: dependencies.makeAuthFlowCoordinator())
         _listViewModel = State(initialValue: dependencies.makeLoanListViewModel())
+        let dispatcher = DeepLinkDispatcher(logger: dependencies.logger)
+        FeatureRegistration.registerAll(dispatcher: dispatcher)
+        _dispatcher = State(initialValue: dispatcher)
     }
 
     var body: some View {
@@ -67,10 +70,14 @@ struct RootView: View {
                 privacyCurtain
             }
         }
+        // Deep links arrive here regardless of which auth phase is up.
+        .onOpenURL { url in
+            handleDeepLink(url)
+        }
         .onChange(of: authFlow.phase) { _, newPhase in
             if newPhase == .authenticated,
-               let route = coordinator.consumePendingDestination() {
-                coordinator.show(route)
+               let intent = coordinator.consumePendingIntent() {
+                coordinator.apply(intent)
             }
         }
     }
@@ -109,7 +116,7 @@ struct RootView: View {
                 destination(for: route)
             }
         }
-        .sheet(item: $paymentSheet) { context in
+        .sheet(item: paymentSheetBinding) { context in
             PaymentFeatureEntry.makeFlowView(
                 loanID: context.loanID,
                 loanRepository: dependencies.loanRepository,
@@ -121,7 +128,6 @@ struct RootView: View {
                     handlePaymentOutcome(outcome)
                 }
             )
-            .interactiveDismissDisabled(false)
         }
         #if DEBUG
         .sheet(isPresented: $isDebugMenuPresented) {
@@ -130,8 +136,37 @@ struct RootView: View {
         #endif
     }
 
+    /// Presentation state lives on the coordinator; this binding only
+    /// translates it for `.sheet(item:)` (and routes UI-side dismissal —
+    /// the drag gesture — back through the coordinator).
+    private var paymentSheetBinding: Binding<PaymentSheetContext?> {
+        Binding(
+            get: { coordinator.presentedPaymentLoanID.map(PaymentSheetContext.init) },
+            set: { newValue in
+                if newValue == nil {
+                    coordinator.dismissPayment()
+                }
+            }
+        )
+    }
+
+    private func handleDeepLink(_ url: URL) {
+        let outcome = dispatcher.dispatch(url, isAuthenticated: authFlow.phase == .authenticated)
+        switch outcome {
+        case .handled(let intent):
+            coordinator.apply(intent)
+        case .requiresAuth(let intent):
+            // Stored, not acted on: the auth flow is already on screen (or
+            // will be); the intent fires exactly once on the authenticated
+            // transition.
+            coordinator.deferUntilAuthenticated(intent)
+        case .notRecognized, nil:
+            break // logged and dropped by the dispatcher
+        }
+    }
+
     private func handlePaymentOutcome(_ outcome: PaymentOutcome) {
-        paymentSheet = nil
+        coordinator.dismissPayment()
         switch outcome {
         case .success:
             // FINTECH: unwind STRAIGHT to the list. The consumed
@@ -149,7 +184,9 @@ struct RootView: View {
             // to re-auth, and remember where the user was headed — after
             // login + biometric they land back on that loan.
             coordinator.popToRoot()
-            coordinator.deferUntilAuthenticated(.loanDetail(loanID))
+            coordinator.deferUntilAuthenticated(
+                NavigationIntent(base: .loanList, routes: [.loanDetail(loanID)])
+            )
             Task { await authFlow.sessionExpired() }
         }
     }
@@ -174,7 +211,7 @@ struct RootView: View {
                     loanID: id,
                     repository: dependencies.loanRepository
                 ),
-                onMakePayment: { paymentSheet = PaymentSheetContext(loanID: id) }
+                onMakePayment: { coordinator.presentPayment(for: id) }
             )
         case .applyForLoan:
             LoanApplicationScreen(
