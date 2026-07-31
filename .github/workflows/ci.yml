@@ -29,6 +29,13 @@ jobs:
       - name: Data tests
         run: swift test --package-path Packages/LoanPayData
 
+      # Test-only package (no library product), so xcodebuild generates a
+      # "-Package" scheme rather than one matching the package name; running
+      # natively sidesteps the naming and the simulator both — the package
+      # declares macOS for exactly this.
+      - name: Rosetta (XCTest) tests
+        run: swift test --package-path Packages/LoanPayRosetta
+
       - name: Resolve simulator
         id: sim
         run: |
@@ -43,7 +50,6 @@ jobs:
             -destination "$DEST" -only-testing:loanpayTests | tail -50
           (cd Packages/PaymentFeature && xcodebuild test -scheme PaymentFeature -destination "$DEST" | tail -20)
           (cd Packages/SupportFeature && xcodebuild test -scheme SupportFeature -destination "$DEST" | tail -20)
-          (cd Packages/LoanPayRosetta && xcodebuild test -scheme LoanPayRosetta -destination "$DEST" | tail -20)
 
       - name: Release audit
         run: Scripts/release-audit.sh "platform=iOS Simulator,id=${{ steps.sim.outputs.id }}"
