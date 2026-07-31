@@ -38,11 +38,8 @@ tests; `main` was releasable after every merge.
 | Rosetta XCTest target | team migrating between test frameworks | delete after migration completes |
 | Feature packages (Payment/Support) vs in-app (LoanList/Auth) | extraction recorded as deliberate: extract when a second team or app needs them | keep in-app (as LoanList/Auth are) |
 
-## Deviations from the original brief (all deliberate, all recorded)
+## Deliberate simplifications
 
-- PR bases: switched mid-run to "every PR targets main" at the user's
-  request; PRs #3–#5 had merged into stack parents first, recovered by
-  roll-up PR #6.
 - Debug menu is app-owned rather than assembled from per-feature
   contribution interfaces — the seam (`FeatureEntry`) exists; contributions
   can migrate onto it when a feature actually needs to add a section.
