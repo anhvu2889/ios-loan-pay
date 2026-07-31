@@ -22,6 +22,7 @@ struct RootView: View {
     @State private var dispatcher: DeepLinkDispatcher
     @State private var outboxStatus: OutboxStatusViewModel
     @State private var isDebugMenuPresented = false
+    @State private var showsIntegrityWarning = false
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -82,13 +83,37 @@ struct RootView: View {
             handleDeepLink(url)
         }
         .task {
+            await dependencies.registerSessionWipes()
             outboxStatus.startWatching()
+
+            // Device-integrity probe: off the critical path, signal-only.
+            let signals = JailbreakSensor().detectSignals()
+            for signal in signals {
+                dependencies.analytics.track(.riskSignal(type: signal))
+            }
+            showsIntegrityWarning = !signals.isEmpty
+
             // Connectivity-regain drain: queued writes leave the moment
             // the network returns, not the next time the user pokes us.
             for await status in dependencies.connectivity.statusUpdates() {
                 if status == .online {
                     await dependencies.outboxDrainer.drainNow()
                 }
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .background:
+                authFlow.sceneDidEnterBackground()
+            case .active:
+                Task { await authFlow.sceneDidBecomeActive() }
+            default:
+                break
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if showsIntegrityWarning {
+                integrityWarningBanner
             }
         }
         .onChange(of: authFlow.phase) { _, newPhase in
@@ -218,6 +243,25 @@ struct RootView: View {
             )
             Task { await authFlow.sessionExpired() }
         }
+    }
+
+    /// Soft warning, dismissible — the point is informed users, not a wall.
+    private var integrityWarningBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.shield")
+            Text("This device looks modified. For your protection, be extra careful with payments.")
+                .font(.footnote)
+            Spacer()
+            Button {
+                showsIntegrityWarning = false
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.semibold))
+            }
+            .accessibilityLabel("Dismiss warning")
+        }
+        .padding(12)
+        .background(.orange.opacity(0.2))
     }
 
     private var privacyCurtain: some View {

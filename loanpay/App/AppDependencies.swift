@@ -99,14 +99,22 @@ final class AppDependencies {
     let outboxStore: OutboxStore
     let outboxDrainer: OutboxDrainer
 
+    /// Registers every PII store with the session's sweep. Called once at
+    /// startup; from then on `SessionStore.clearAll()` IS the logout sweep.
+    func registerSessionWipes() async {
+        await sessionStore.registerWipeHandler { [cacheStore] in
+            await cacheStore.removeAll()
+        }
+        await sessionStore.registerWipeHandler { [outboxStore] in
+            await outboxStore.removeAll()
+        }
+    }
+
     func makeAuthFlowCoordinator() -> AuthFlowCoordinator {
         AuthFlowCoordinator(
             session: sessionStore,
             biometrics: biometrics,
-            logger: logger,
-            // FINTECH: the cache is PII (balances, schedules, collateral).
-            // It leaves WITH the session — logout and expiry both sweep it.
-            onSessionCleared: { [cacheStore] in await cacheStore.removeAll() }
+            logger: logger
         )
     }
 

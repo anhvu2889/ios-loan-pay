@@ -43,6 +43,15 @@ final class DeepLinkDispatcher {
             return nil
         }
 
+        // WHY reject empty segments explicitly: Foundation COLLAPSES "//"
+        // when splitting paths, so "payment//methods" would silently parse
+        // as a one-segment link with loan id "methods". A link containing
+        // an empty segment is malformed, not creatively spelled.
+        guard !url.path().contains("//") else {
+            logger.log(.warning, category: .ui, "deep link dropped: empty path segment")
+            return nil
+        }
+
         let components = url.pathComponents.filter { $0 != "/" }
         let outcome = handler.handle(pathComponents: components, isAuthenticated: isAuthenticated)
 
