@@ -44,6 +44,20 @@ struct DebugMenuView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Picker("Backend", selection: environmentBinding) {
+                        Text("In-process mock").tag(AppEnvironment.mockInProcess)
+                        Text("Localhost server").tag(AppEnvironment.remoteLocalhost)
+                    }
+                } header: {
+                    Text("Environment")
+                } footer: {
+                    // Honest UX: dependencies are wired once at launch;
+                    // pretending a live switch works would leave half the
+                    // object graph on the old backend.
+                    Text("Takes effect on the next launch. Start the server first: npx json-server db.json --port 3000 (see Scripts/mock-server).")
+                }
+
                 Section("Mock backend failures") {
                     ForEach(MockEndpoint.allCases, id: \.self) { endpoint in
                         Picker(endpoint.rawValue, selection: binding(for: endpoint)) {
@@ -75,6 +89,13 @@ struct DebugMenuView: View {
                 selections[endpoint] = await choice(for: behavior.failure(for: endpoint))
             }
         }
+    }
+
+    private var environmentBinding: Binding<AppEnvironment> {
+        Binding(
+            get: { AppEnvironment.current() },
+            set: { UserDefaults.standard.set($0.rawValue, forKey: AppEnvironment.defaultsKey) }
+        )
     }
 
     private func binding(for endpoint: MockEndpoint) -> Binding<FailureChoice> {

@@ -23,7 +23,11 @@ final class AppDependencies {
     let authService: any AuthService
     let biometrics: any BiometricAuthenticating
 
-    init() {
+    /// Which backend this process talks to; fixed at launch.
+    let environment: AppEnvironment
+
+    init(environment: AppEnvironment = .current()) {
+        self.environment = environment
         let logger = OSAppLogger()
         self.logger = logger
         self.analytics = ConsoleAnalytics()
@@ -31,23 +35,45 @@ final class AppDependencies {
         let sleeper = ContinuousSleeper()
         self.sleeper = sleeper
 
-        // The in-process mock is the runtime default; its behavior actor is
-        // kept as a named dependency so the debug menu can inject failures.
+        let sessionStore = SessionStore(storage: KeychainWrapper())
+        self.sessionStore = sessionStore
+
+        // The behavior actor exists in BOTH environments: the in-process
+        // mock consults it for everything; the remote environment still
+        // uses it for the outbox deliverer and the application form.
         let behavior = MockBehavior()
         self.mockBehavior = behavior
-        // ARCH: the SWR decorator wraps the mock exactly as it will wrap
-        // the URLSession repository — caching is composed here, invisible
-        // to both the data source below and the screens above.
+
+        // ARCH: the environment switch happens HERE and only here. The SWR
+        // decorator wraps whichever base repository the environment picked;
+        // screens, caches and use cases cannot tell the difference — that
+        // indistinguishability is the whole point of the repository seam.
+        let baseLoanRepository: any LoanRepository
+        let basePaymentRepository: any PaymentRepository
+        switch environment {
+        case .mockInProcess:
+            baseLoanRepository = MockLoanRepository(behavior: behavior)
+            basePaymentRepository = MockPaymentRepository(behavior: behavior)
+        case .remoteLocalhost:
+            let client = URLSessionAPIClient(
+                baseURL: URL(string: "http://localhost:3000")!,
+                tokenProvider: { [sessionStore] in await sessionStore.currentToken() },
+                logger: logger
+            )
+            baseLoanRepository = RemoteLoanRepository(client: client)
+            basePaymentRepository = RemotePaymentRepository(client: client)
+        }
+
         let cache = CacheStore()
         let cachedRepository = CachedLoanRepository(
-            base: MockLoanRepository(behavior: behavior),
+            base: baseLoanRepository,
             cache: cache,
             sleeper: sleeper
         )
         self.cacheStore = cache
         self.cachedLoanRepository = cachedRepository
         self.loanRepository = cachedRepository
-        self.paymentRepository = MockPaymentRepository(behavior: behavior)
+        self.paymentRepository = basePaymentRepository
         self.connectivity = ConnectivityMonitor()
         // The real outbox replaces the early stub: same OutboxEnqueuing
         // seam, so no feature changed when persistence arrived.
@@ -61,7 +87,6 @@ final class AppDependencies {
             logger: logger
         )
 
-        self.sessionStore = SessionStore(storage: KeychainWrapper())
         self.authService = StubAuthService(sleeper: sleeper)
         self.biometrics = LABiometricAuthenticator(logger: logger)
         self.applicationRepository = MockLoanApplicationRepository(behavior: behavior)

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The custom scheme other apps / notifications use to open LoanPay:
+	     loanpay://loans/<id>, loanpay://payment/<loanId>/methods,
+	     loanpay://support/callback/<topic>. This file is MERGED with the
+	     build-setting-generated Info.plist (GENERATE_INFOPLIST_FILE stays
+	     on); it exists because CFBundleURLTypes has no INFOPLIST_KEY_
+	     equivalent. -->
+	<!-- Background app refresh drains the outbox opportunistically (see
+	     OutboxBackgroundRefresh for the honest caveats vs WorkManager). -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.anhvu.loanpay.outbox-refresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<!-- DEBUG ONLY: allow cleartext HTTP to the local json-server. The
+	     Release Info.plist (Info.plist) has NO ATS exceptions — asserted by
+	     the release audit. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.anhvu.loanpay.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>loanpay</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
