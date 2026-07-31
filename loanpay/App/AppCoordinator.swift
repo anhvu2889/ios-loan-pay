@@ -26,6 +26,27 @@ final class AppCoordinator {
         path.removeAll()
     }
 
+    // MARK: - Pending destination
+
+    /// Where the user was headed when authentication interrupted them.
+    ///
+    /// FINTECH: a deep link to a guarded screen must SURVIVE the login wall
+    /// — "tap the payment reminder, sign in, land on the loan" — but it
+    /// must fire at most once. A pending destination that replays on every
+    /// auth transition would re-open payment screens on session refreshes.
+    private(set) var pendingDestination: AppRoute?
+
+    func deferUntilAuthenticated(_ route: AppRoute) {
+        pendingDestination = route
+    }
+
+    /// Returns the stored destination and CLEARS it — consume-once is the
+    /// contract, enforced structurally rather than by caller discipline.
+    func consumePendingDestination() -> AppRoute? {
+        defer { pendingDestination = nil }
+        return pendingDestination
+    }
+
     /// NavigationStack needs a read-write binding (back gestures pop the
     /// path from the UI side). Routing it through this accessor keeps
     /// `path` writes inside the coordinator's file.
