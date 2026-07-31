@@ -30,34 +30,42 @@ final class FakeBiometrics: BiometricAuthenticating, @unchecked Sendable {
 
 @MainActor
 @Suite struct AuthFlowCoordinatorTests {
-    private func makeCoordinator(
+    /// The assembled system under test plus the two seams asserts reach.
+    private struct Harness {
+        let coordinator: AuthFlowCoordinator
+        let session: SessionStore
+        let storage: InMemoryTokenStorage
+    }
+
+    private func makeHarness(
         storage: InMemoryTokenStorage = InMemoryTokenStorage(),
         biometrics: FakeBiometrics = FakeBiometrics(shouldSucceed: true)
-    ) -> (AuthFlowCoordinator, SessionStore, InMemoryTokenStorage) {
+    ) -> Harness {
         let session = SessionStore(storage: storage)
         let coordinator = AuthFlowCoordinator(
             session: session,
             biometrics: biometrics,
             logger: SilentLogger()
         )
-        return (coordinator, session, storage)
+        return Harness(coordinator: coordinator, session: session, storage: storage)
     }
 
     @Test func bootstrapWithoutSessionLandsOnLogin() async {
-        let (coordinator, _, _) = makeCoordinator()
+        let coordinator = makeHarness().coordinator
         await coordinator.bootstrap()
         #expect(coordinator.phase == .loggedOut)
     }
 
     @Test func bootstrapWithPersistedSessionStillRequiresTheGate() async {
-        let (coordinator, _, _) = makeCoordinator(storage: InMemoryTokenStorage(token: "persisted"))
+        let coordinator = makeHarness(storage: InMemoryTokenStorage(token: "persisted")).coordinator
         await coordinator.bootstrap()
         // A stored token is NOT enough to see balances — presence first.
         #expect(coordinator.phase == .biometricRequired)
     }
 
     @Test func freshLoginStoresTheTokenOnlyAfterTheGatePasses() async throws {
-        let (coordinator, session, storage) = makeCoordinator()
+        let harness = makeHarness()
+        let (coordinator, session, storage) = (harness.coordinator, harness.session, harness.storage)
         await coordinator.bootstrap()
 
         coordinator.didLogin(token: "fresh-token")
@@ -75,10 +83,10 @@ final class FakeBiometrics: BiometricAuthenticating, @unchecked Sendable {
 
     @Test func failedGateStaysAtTheGateWithAMessage() async {
         let biometrics = FakeBiometrics(shouldSucceed: false)
-        let (coordinator, _, _) = makeCoordinator(
+        let coordinator = makeHarness(
             storage: InMemoryTokenStorage(token: "persisted"),
             biometrics: biometrics
-        )
+        ).coordinator
         await coordinator.bootstrap()
 
         await coordinator.runBiometricGate()
@@ -94,7 +102,8 @@ final class FakeBiometrics: BiometricAuthenticating, @unchecked Sendable {
     }
 
     @Test func logoutClearsSessionAndReturnsToLogin() async throws {
-        let (coordinator, session, storage) = makeCoordinator(storage: InMemoryTokenStorage(token: "persisted"))
+        let harness = makeHarness(storage: InMemoryTokenStorage(token: "persisted"))
+        let (coordinator, session, storage) = (harness.coordinator, harness.session, harness.storage)
         await coordinator.bootstrap()
         await coordinator.runBiometricGate()
         #expect(coordinator.phase == .authenticated)
@@ -107,7 +116,8 @@ final class FakeBiometrics: BiometricAuthenticating, @unchecked Sendable {
     }
 
     @Test func sessionExpiryClearsTheStoredToken() async throws {
-        let (coordinator, _, storage) = makeCoordinator(storage: InMemoryTokenStorage(token: "stale"))
+        let harness = makeHarness(storage: InMemoryTokenStorage(token: "stale"))
+        let (coordinator, storage) = (harness.coordinator, harness.storage)
         await coordinator.bootstrap()
         await coordinator.runBiometricGate()
 

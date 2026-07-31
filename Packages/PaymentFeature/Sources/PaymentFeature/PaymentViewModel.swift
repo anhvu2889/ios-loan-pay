@@ -65,6 +65,11 @@ public final class PaymentViewModel {
     // transition. The classic double-tap race — two .pay actions reading
     // the same "ready" state — cannot happen, because the first send
     // completes its transition to .paying before the second is processed.
+    // The branch count IS the state machine: every legal (state, action)
+    // pair, in one switch, with no suspension points. Extracting branches
+    // into helpers would preserve the number while hiding the shape — the
+    // exhaustive switch in one screenful is the safety feature.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     public func send(_ action: PaymentAction) {
         guard !isDismissed else { return }
 

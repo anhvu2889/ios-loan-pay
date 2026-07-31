@@ -36,6 +36,7 @@ struct BalanceHistoryChart: View {
         guard let first = history.first, let last = history.last else {
             return "Balance history unavailable"
         }
-        return "Balance decreased from \(first.balance.spokenDescription()) to \(last.balance.spokenDescription()) over \(history.count) months"
+        return "Balance decreased from \(first.balance.spokenDescription()) "
+            + "to \(last.balance.spokenDescription()) over \(history.count) months"
     }
 }

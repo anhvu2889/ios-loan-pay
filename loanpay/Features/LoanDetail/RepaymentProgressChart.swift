@@ -68,7 +68,8 @@ struct RepaymentProgressChart: View {
             summary += ", \(overdue) overdue"
         }
         if let next = installments.first(where: { $0.status == .due }) {
-            summary += ", next installment of \(next.amount.spokenDescription()) due \(next.dueDate.formatted(date: .abbreviated, time: .omitted))"
+            summary += ", next installment of \(next.amount.spokenDescription()) "
+                + "due \(next.dueDate.formatted(date: .abbreviated, time: .omitted))"
         }
         return summary
     }

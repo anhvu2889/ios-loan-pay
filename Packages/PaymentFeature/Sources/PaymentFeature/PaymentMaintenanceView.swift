@@ -7,7 +7,8 @@ struct PaymentMaintenanceView: View {
         ContentUnavailableView {
             Label("Payments are paused", systemImage: "wrench.and.screwdriver")
         } description: {
-            Text("We're doing maintenance on payments right now. Your loans are unaffected — please try again a little later.")
+            Text("We're doing maintenance on payments right now. "
+                + "Your loans are unaffected — please try again a little later.")
         }
         .onAppear {
             // VoiceOver hears WHY the screen has no pay button, instead of

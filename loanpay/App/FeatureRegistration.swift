@@ -15,6 +15,9 @@ enum FeatureRegistration {
     static func registerAll(dispatcher: DeepLinkDispatcher) {
         dispatcher.register(featureID: "loans", handler: LoansDeepLinkHandler())
         dispatcher.register(featureID: PaymentFeatureEntry.featureID, handler: PaymentDeepLinkHandler())
-        dispatcher.register(featureID: SupportFeatureEntry.featureID, handler: SupportFeatureEntry.makeDeepLinkHandler())
+        dispatcher.register(
+            featureID: SupportFeatureEntry.featureID,
+            handler: SupportFeatureEntry.makeDeepLinkHandler()
+        )
     }
 }

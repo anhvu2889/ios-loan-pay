@@ -133,7 +133,7 @@ struct LoanListScreen: View {
         // Skeleton = REAL rows, redacted. The shimmering placeholder shares
         // layout code with the loaded state, so it can never drift into a
         // different-looking loading screen.
-        ForEach(0..<6, id: \.self) { index in
+        ForEach(0..<6, id: \.self) { _ in
             LoanRowView(
                 loan: PreviewFixtures.activeLoan,
                 onSelect: {},

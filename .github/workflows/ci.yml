@@ -20,7 +20,7 @@ jobs:
       - name: SwiftLint
         run: |
           brew install swiftlint
-          swiftlint --strict --quiet || swiftlint --quiet
+          swiftlint --strict --quiet
 
       # Foundation-only packages run natively — no simulator tax.
       - name: Domain tests

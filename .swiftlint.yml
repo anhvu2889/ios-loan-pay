@@ -14,6 +14,14 @@ excluded:
 opt_in_rules:
   - file_name # filename must match the primary type — one type per file
 
+disabled_rules:
+  # House style: trailing commas ON in multiline literals — appending an
+  # element is a one-line diff instead of two.
+  - trailing_comma
+  # SwiftUI's label/content and StateContainer's onRetry/content pairs
+  # read best with trailing-closure syntax; this rule fights the framework.
+  - multiple_closures_with_trailing_closure
+
 file_length:
   warning: 400
   error: 600
@@ -61,7 +69,9 @@ custom_rules:
 
   no_userdefaults_in_data_or_session:
     name: "No UserDefaults in Data/Session"
-    regex: 'UserDefaults'
+    # `UserDefaults.` (with the dot) matches USAGE; a comment explaining
+    # why we don't use it must not trip the rule that enforces it.
+    regex: 'UserDefaults\s*\.'
     included: '.*/(LoanPayData/Sources|Auth)/.*\.swift'
     message: "UserDefaults is a plaintext plist. Tokens go in the Keychain; caches go through CacheStore; app-level debug switches live in the app target only."
     severity: error
