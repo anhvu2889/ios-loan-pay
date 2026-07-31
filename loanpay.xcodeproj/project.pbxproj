@@ -425,7 +425,7 @@
 				DEVELOPMENT_TEAM = R2QC48MTSG;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = SupportingFiles/Info.plist;
+				INFOPLIST_FILE = SupportingFiles/Info-Debug.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
