@@ -85,6 +85,14 @@ struct RootView: View {
             )
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        coordinator.show(.applyForLoan)
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Apply for a loan")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button(role: .destructive) {
                             Task { await authFlow.logout() }
@@ -169,10 +177,11 @@ struct RootView: View {
                 onMakePayment: { paymentSheet = PaymentSheetContext(loanID: id) }
             )
         case .applyForLoan:
-            ContentUnavailableView(
-                "Apply for a loan",
-                systemImage: "square.and.pencil",
-                description: Text("Application form coming in a later slice.")
+            LoanApplicationScreen(
+                viewModel: LoanApplicationViewModel(repository: dependencies.applicationRepository),
+                // Done → back to the list; like the payment confirmation,
+                // a submitted application is consumed, not revisitable.
+                onFinished: { coordinator.popToRoot() }
             )
         case .supportCallback:
             ContentUnavailableView(
