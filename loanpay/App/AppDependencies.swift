@@ -19,6 +19,9 @@ final class AppDependencies {
     let paymentRepository: any PaymentRepository
     let outbox: any OutboxEnqueuing
     let sleeper: any Sleeper
+    let sessionStore: SessionStore
+    let authService: any AuthService
+    let biometrics: any BiometricAuthenticating
 
     init() {
         let logger = OSAppLogger()
@@ -34,6 +37,18 @@ final class AppDependencies {
         self.loanRepository = MockLoanRepository(behavior: behavior)
         self.paymentRepository = MockPaymentRepository(behavior: behavior)
         self.outbox = LoggedOutboxStub(logger: logger)
+
+        self.sessionStore = SessionStore(storage: KeychainWrapper())
+        self.authService = StubAuthService(sleeper: sleeper)
+        self.biometrics = LABiometricAuthenticator(logger: logger)
+    }
+
+    func makeAuthFlowCoordinator() -> AuthFlowCoordinator {
+        AuthFlowCoordinator(session: sessionStore, biometrics: biometrics, logger: logger)
+    }
+
+    func makeLoginViewModel(onSuccess: @escaping (String) -> Void) -> LoginViewModel {
+        LoginViewModel(authService: authService, onSuccess: onSuccess)
     }
 
     func makeLoanListViewModel() -> LoanListViewModel {
