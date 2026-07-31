@@ -12,17 +12,39 @@ public struct URLSessionAPIClient: Sendable {
     private let session: URLSession
     private let tokenProvider: TokenProvider
     private let logger: any AppLogger
+    private let pinningDelegate: PinnedSessionDelegate?
 
     public init(
         baseURL: URL,
         session: URLSession = .shared,
         tokenProvider: @escaping TokenProvider,
-        logger: any AppLogger
+        logger: any AppLogger,
+        pinningDelegate: PinnedSessionDelegate? = nil
     ) {
         self.baseURL = baseURL
         self.session = session
         self.tokenProvider = tokenProvider
         self.logger = logger
+        self.pinningDelegate = pinningDelegate
+    }
+
+    /// A client whose URLSession enforces the given pin set during every
+    /// TLS handshake.
+    public static func pinned(
+        baseURL: URL,
+        pinning: CertificatePinning,
+        tokenProvider: @escaping TokenProvider,
+        logger: any AppLogger
+    ) -> URLSessionAPIClient {
+        let delegate = PinnedSessionDelegate(pinning: pinning, logger: logger)
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        return URLSessionAPIClient(
+            baseURL: baseURL,
+            session: session,
+            tokenProvider: tokenProvider,
+            logger: logger,
+            pinningDelegate: delegate
+        )
     }
 
     public func get<Response: Decodable & Sendable>(
@@ -92,7 +114,19 @@ public struct URLSessionAPIClient: Sendable {
 
         logger.log(.debug, category: .network, "\(method) \(path)")
 
-        let (data, response) = try await session.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            // A refused pin surfaces from URLSession as a generic
+            // cancellation; the delegate's flag is what upgrades it to the
+            // DISTINCT pinning error with its own user message.
+            if pinningDelegate?.consumeViolation() == true {
+                throw DomainError.pinningViolation
+            }
+            throw error
+        }
         guard let http = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
         }
