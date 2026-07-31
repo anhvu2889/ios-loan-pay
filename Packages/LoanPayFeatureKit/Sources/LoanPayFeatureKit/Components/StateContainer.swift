@@ -5,18 +5,7 @@ import SwiftUI
 /// only the loaded content; the empty/error/loading furniture is uniform
 /// app-wide because it lives here once.
 public struct StateContainer<Content: View>: View {
-    // ARCH: this is a *display* state, deliberately poorer than any
-    // ViewModel's state enum — no associated data beyond what rendering
-    // needs, no domain types. ViewModels translate rich state down to it;
-    // the component stays reusable because it knows nothing.
-    public enum DisplayState: Equatable {
-        case loading
-        case content
-        case empty(title: String, message: String)
-        case error(message: String, isRetryable: Bool)
-    }
-
-    private let state: DisplayState
+    private let state: ContentDisplayState
     private let onRetry: (() -> Void)?
     private let content: Content
 
@@ -24,7 +13,7 @@ public struct StateContainer<Content: View>: View {
     // be previewable with literals and reusable by every feature package
     // without importing any of them.
     public init(
-        state: DisplayState,
+        state: ContentDisplayState,
         onRetry: (() -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
