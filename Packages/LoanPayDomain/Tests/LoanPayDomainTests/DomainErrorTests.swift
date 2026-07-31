@@ -17,6 +17,7 @@ import LoanPayDomain
         DomainError.unauthorized,
         .notFound,
         .invalidData(keyPath: "loan.balance"),
+        .pinningViolation,
     ])
     func deterministicFailuresAreNotRetryable(error: DomainError) {
         #expect(!error.isRetryable)

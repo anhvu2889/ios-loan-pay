@@ -10,6 +10,10 @@ public enum AnalyticsEvent: Equatable, Sendable {
     case paymentSubmitted
     case paymentSucceeded
     case paymentFailed(errorType: String)
+    /// Device-integrity observation (e.g. "jailbreak_paths"). Type only —
+    /// the signal feeds server-side risk scoring, never client-side
+    /// blocking, and never carries device contents.
+    case riskSignal(type: String)
 }
 
 public protocol AnalyticsClient: Sendable {
