@@ -11,36 +11,57 @@ final class LoanDetailViewModel {
         case failed(DomainError)
     }
 
-    private(set) var state: State = .loading
-
-    let loanID: LoanID
-    private let repository: any LoanRepository
-
-    init(loanID: LoanID, repository: any LoanRepository) {
-        self.loanID = loanID
-        self.repository = repository
+    enum Freshness: Equatable {
+        case fresh
+        case cached(fetchedAt: Date)
+        case staleAfterFailedRefresh(fetchedAt: Date)
     }
 
-    // WHY no auto-retry here: the bounded-backoff policy is reserved for
-    // the app's front door (initial list load), where the radio is often
-    // still waking. Detail sits behind a visible list — a failure here gets
-    // an honest error with a manual Try Again, which beats a screen that
-    // sits silent for 1.5s of hidden retries.
+    private(set) var state: State = .loading
+    private(set) var freshness: Freshness = .fresh
+
+    let loanID: LoanID
+    private let snapshots: any SnapshotLoanReading
+
+    init(loanID: LoanID, snapshots: any SnapshotLoanReading) {
+        self.loanID = loanID
+        self.snapshots = snapshots
+    }
+
+    // Stale-while-revalidate: a cached detail renders in one frame (this is
+    // what makes offline deep links land on content instead of a blank
+    // screen), then the refresh replaces it or downgrades it to "stale".
+    //
+    // WHY no auto-retry: the bounded-backoff policy is reserved for the
+    // app's front door. Here a cached copy usually papers over the blip,
+    // and a visible manual Try Again beats hidden waiting.
     func load() async {
-        state = .loading
         do {
-            state = .loaded(try await repository.fetchLoanDetail(id: loanID))
+            for try await snapshot in snapshots.loanDetailSnapshots(id: loanID) {
+                state = .loaded(snapshot.value)
+                freshness = snapshot.isFromCache ? .cached(fetchedAt: snapshot.fetchedAt) : .fresh
+            }
         } catch is CancellationError {
             // Back navigation mid-load: leave the state alone; the screen
             // is already gone.
         } catch let error as DomainError {
-            state = .failed(error)
+            handleRefreshFailure(error)
         } catch {
-            state = .failed(.unknown)
+            handleRefreshFailure(.unknown)
         }
     }
 
     func retry() async {
+        state = .loading
+        freshness = .fresh
         await load()
+    }
+
+    private func handleRefreshFailure(_ error: DomainError) {
+        if case .cached(let fetchedAt) = freshness, case .loaded = state {
+            freshness = .staleAfterFailedRefresh(fetchedAt: fetchedAt)
+        } else {
+            state = .failed(error)
+        }
     }
 }

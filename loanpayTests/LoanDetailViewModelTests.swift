@@ -5,20 +5,50 @@ import LoanPayDomain
 
 @MainActor
 @Suite struct LoanDetailViewModelTests {
-    @Test func loadSuccessExposesTheDetail() async {
+    @Test func freshLoadExposesTheDetailUnlabeled() async {
         let detail = LoanDetail.fixture(id: "loan-7")
-        let repository = ProgrammableLoanRepository(pages: [:], detailResult: .success(detail))
-        let viewModel = LoanDetailViewModel(loanID: LoanID("loan-7"), repository: repository)
+        let provider = FakeSnapshotProvider(detailSnapshots: [fresh(detail)])
+        let viewModel = LoanDetailViewModel(loanID: LoanID("loan-7"), snapshots: provider)
 
         await viewModel.load()
 
         #expect(viewModel.state == .loaded(detail))
-        await #expect(repository.detailRequests == [LoanID("loan-7")])
+        #expect(viewModel.freshness == .fresh)
     }
 
-    @Test func notFoundFailsWithoutRetryOffer() async {
-        let repository = ProgrammableLoanRepository(pages: [:], detailResult: .failure(.notFound))
-        let viewModel = LoanDetailViewModel(loanID: LoanID("loan-x"), repository: repository)
+    @Test func cachedThenFreshEndsFresh() async {
+        let stale = LoanDetail.fixture(id: "loan-7", status: .overdue)
+        let current = LoanDetail.fixture(id: "loan-7")
+        let provider = FakeSnapshotProvider(detailSnapshots: [
+            cached(stale, at: testDate),
+            fresh(current),
+        ])
+        let viewModel = LoanDetailViewModel(loanID: LoanID("loan-7"), snapshots: provider)
+
+        await viewModel.load()
+
+        #expect(viewModel.state == .loaded(current))
+        #expect(viewModel.freshness == .fresh)
+    }
+
+    @Test func offlineDeepLinkRendersFromCacheNeverBlank() async {
+        // Offline + cache: content with a stale label, not an error screen.
+        let stale = LoanDetail.fixture(id: "loan-7")
+        let provider = FakeSnapshotProvider(
+            detailSnapshots: [cached(stale, at: testDate)],
+            detailError: .offline
+        )
+        let viewModel = LoanDetailViewModel(loanID: LoanID("loan-7"), snapshots: provider)
+
+        await viewModel.load()
+
+        #expect(viewModel.state == .loaded(stale))
+        #expect(viewModel.freshness == .staleAfterFailedRefresh(fetchedAt: testDate))
+    }
+
+    @Test func failureWithNoCacheFailsHonestly() async {
+        let provider = FakeSnapshotProvider(detailError: .notFound)
+        let viewModel = LoanDetailViewModel(loanID: LoanID("loan-x"), snapshots: provider)
 
         await viewModel.load()
 
@@ -28,22 +58,5 @@ import LoanPayDomain
         }
         #expect(error == .notFound)
         #expect(!error.isRetryable)
-        // Detail loads do NOT auto-retry — one request only.
-        await #expect(repository.detailRequests.count == 1)
-    }
-
-    @Test func retryAfterTransientFailureRecovers() async {
-        let repository = ProgrammableLoanRepository(pages: [:], detailResult: .failure(.timeout))
-        let viewModel = LoanDetailViewModel(loanID: LoanID("loan-7"), repository: repository)
-
-        await viewModel.load()
-        #expect(viewModel.state == .failed(.timeout))
-
-        let detail = LoanDetail.fixture(id: "loan-7")
-        await repository.setDetailResult(.success(detail))
-        await viewModel.retry()
-
-        #expect(viewModel.state == .loaded(detail))
-        await #expect(repository.detailRequests.count == 2)
     }
 }

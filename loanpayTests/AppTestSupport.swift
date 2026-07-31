@@ -191,6 +191,53 @@ actor ProgrammableLoanRepository: LoanRepository {
     }
 }
 
+/// Scripted stale-while-revalidate source: yields its snapshots, then
+/// finishes (throwing, if an error is scripted).
+struct FakeSnapshotProvider: SnapshotLoanReading {
+    var pageSnapshots: [Snapshot<LoanPage>] = []
+    var pageError: DomainError?
+    var detailSnapshots: [Snapshot<LoanDetail>] = []
+    var detailError: DomainError?
+
+    func loanPageSnapshots(page: Int) -> AsyncThrowingStream<Snapshot<LoanPage>, any Error> {
+        let snapshots = pageSnapshots
+        let error = pageError
+        return AsyncThrowingStream { continuation in
+            for snapshot in snapshots { continuation.yield(snapshot) }
+            continuation.finish(throwing: error)
+        }
+    }
+
+    func loanDetailSnapshots(id: LoanID) -> AsyncThrowingStream<Snapshot<LoanDetail>, any Error> {
+        let snapshots = detailSnapshots
+        let error = detailError
+        return AsyncThrowingStream { continuation in
+            for snapshot in snapshots { continuation.yield(snapshot) }
+            continuation.finish(throwing: error)
+        }
+    }
+}
+
+func fresh<V: Sendable>(_ value: V) -> Snapshot<V> {
+    Snapshot(value: value, fetchedAt: testDate, isFromCache: false)
+}
+
+func cached<V: Sendable>(_ value: V, at date: Date = testDate) -> Snapshot<V> {
+    Snapshot(value: value, fetchedAt: date, isFromCache: true)
+}
+
+struct FakeConnectivity: ConnectivityMonitoring {
+    var statuses: [ConnectivityStatus] = []
+
+    func statusUpdates() -> AsyncStream<ConnectivityStatus> {
+        let statuses = statuses
+        return AsyncStream { continuation in
+            for status in statuses { continuation.yield(status) }
+            continuation.finish()
+        }
+    }
+}
+
 actor OutboxSpy: OutboxEnqueuing {
     private(set) var enqueued: [OutboxPayload] = []
 

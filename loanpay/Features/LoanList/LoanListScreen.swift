@@ -82,12 +82,18 @@ struct LoanListScreen: View {
                     PortfolioSummaryHeader(summary: viewModel.summary)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    freshnessRow
                     sectionedRows
                     paginationFooter
                 }
             }
             .listStyle(.plain)
             .accessibilityIdentifier(AccessibilityID.loanList)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if viewModel.isOffline {
+                    offlineBanner
+                }
+            }
             .refreshable {
                 await viewModel.refresh()
             }
@@ -97,6 +103,30 @@ struct LoanListScreen: View {
             .animation(reduceMotion ? nil : .default, value: viewModel.sections)
             .animation(reduceMotion ? nil : .default, value: viewModel.searchResults)
         )
+    }
+
+    /// The offline banner states a FACT about the radio; the freshness row
+    /// states a fact about the DATA. They are different truths and can
+    /// appear together (offline + old cache) or apart (online but the
+    /// refresh failed).
+    private var offlineBanner: some View {
+        Label("You're offline — showing saved data", systemImage: "wifi.slash")
+            .font(.footnote.weight(.medium))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(.yellow.opacity(0.25))
+    }
+
+    @ViewBuilder
+    private var freshnessRow: some View {
+        switch viewModel.freshness {
+        case .fresh:
+            EmptyView()
+        case .cached(let fetchedAt), .staleAfterFailedRefresh(let fetchedAt):
+            FreshnessLabel(fetchedAt: fetchedAt, isFromCache: true)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))
+        }
     }
 
     private var skeletonRows: some View {

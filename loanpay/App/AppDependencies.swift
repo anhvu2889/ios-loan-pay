@@ -28,14 +28,27 @@ final class AppDependencies {
         self.logger = logger
         self.analytics = ConsoleAnalytics()
         self.flags = RuntimeOverridableFlags(base: BundledFeatureFlags())
-        self.sleeper = ContinuousSleeper()
+        let sleeper = ContinuousSleeper()
+        self.sleeper = sleeper
 
         // The in-process mock is the runtime default; its behavior actor is
         // kept as a named dependency so the debug menu can inject failures.
         let behavior = MockBehavior()
         self.mockBehavior = behavior
-        self.loanRepository = MockLoanRepository(behavior: behavior)
+        // ARCH: the SWR decorator wraps the mock exactly as it will wrap
+        // the URLSession repository — caching is composed here, invisible
+        // to both the data source below and the screens above.
+        let cache = CacheStore()
+        let cachedRepository = CachedLoanRepository(
+            base: MockLoanRepository(behavior: behavior),
+            cache: cache,
+            sleeper: sleeper
+        )
+        self.cacheStore = cache
+        self.cachedLoanRepository = cachedRepository
+        self.loanRepository = cachedRepository
         self.paymentRepository = MockPaymentRepository(behavior: behavior)
+        self.connectivity = ConnectivityMonitor()
         self.outbox = LoggedOutboxStub(logger: logger)
 
         self.sessionStore = SessionStore(storage: KeychainWrapper())
@@ -45,9 +58,19 @@ final class AppDependencies {
     }
 
     let applicationRepository: any LoanApplicationRepository
+    let cacheStore: CacheStore
+    let cachedLoanRepository: CachedLoanRepository
+    let connectivity: any ConnectivityMonitoring
 
     func makeAuthFlowCoordinator() -> AuthFlowCoordinator {
-        AuthFlowCoordinator(session: sessionStore, biometrics: biometrics, logger: logger)
+        AuthFlowCoordinator(
+            session: sessionStore,
+            biometrics: biometrics,
+            logger: logger,
+            // FINTECH: the cache is PII (balances, schedules, collateral).
+            // It leaves WITH the session — logout and expiry both sweep it.
+            onSessionCleared: { [cacheStore] in await cacheStore.removeAll() }
+        )
     }
 
     func makeLoginViewModel(onSuccess: @escaping (String) -> Void) -> LoginViewModel {
@@ -56,9 +79,11 @@ final class AppDependencies {
 
     func makeLoanListViewModel() -> LoanListViewModel {
         LoanListViewModel(
+            snapshots: cachedLoanRepository,
             loadLoans: LoadLoansUseCase(repository: loanRepository, sleeper: sleeper),
             loadSummary: LoadPortfolioSummaryUseCase(repository: loanRepository),
             searchRepository: loanRepository,
+            connectivity: connectivity,
             outbox: outbox,
             flags: flags,
             logger: logger,

@@ -34,6 +34,14 @@ final class LoanListViewModel {
         case failed
     }
 
+    /// Where the visible list content came from.
+    enum Freshness: Equatable {
+        case fresh
+        case cached(fetchedAt: Date)
+        /// Cache on screen, refresh failed — stale and honest about it.
+        case staleAfterFailedRefresh(fetchedAt: Date)
+    }
+
     // LANG: `private(set)` everywhere: views READ state, they never assign
     // it. The only way in is a method call, which keeps every transition in
     // this file and every test meaningful.
@@ -41,6 +49,8 @@ final class LoanListViewModel {
     private(set) var sections: [LoanSection] = []
     private(set) var paginationFooter: PaginationFooter = .hidden
     private(set) var summary: SummaryState = .idle
+    private(set) var freshness: Freshness = .fresh
+    private(set) var isOffline = false
     private(set) var searchResults: [Loan]?
     var searchText: String = "" {
         didSet { searchTextChanged() }
@@ -89,27 +99,34 @@ final class LoanListViewModel {
     @ObservationIgnored private(set) var searchTask: Task<Void, Never>?
     @ObservationIgnored private(set) var loadMoreTask: Task<Void, Never>?
     @ObservationIgnored private(set) var callbackTask: Task<Void, Never>?
+    @ObservationIgnored private(set) var connectivityTask: Task<Void, Never>?
 
+    private let snapshots: any SnapshotLoanReading
     private let loadLoans: LoadLoansUseCase
     private let loadSummary: LoadPortfolioSummaryUseCase
     private let searchRepository: any LoanRepository
+    private let connectivity: any ConnectivityMonitoring
     private let outbox: any OutboxEnqueuing
     private let flags: any FeatureFlags
     private let logger: any AppLogger
     private let sleeper: any Sleeper
 
     init(
+        snapshots: any SnapshotLoanReading,
         loadLoans: LoadLoansUseCase,
         loadSummary: LoadPortfolioSummaryUseCase,
         searchRepository: any LoanRepository,
+        connectivity: any ConnectivityMonitoring,
         outbox: any OutboxEnqueuing,
         flags: any FeatureFlags,
         logger: any AppLogger,
         sleeper: any Sleeper
     ) {
+        self.snapshots = snapshots
         self.loadLoans = loadLoans
         self.loadSummary = loadSummary
         self.searchRepository = searchRepository
+        self.connectivity = connectivity
         self.outbox = outbox
         self.flags = flags
         self.logger = logger
@@ -120,6 +137,7 @@ final class LoanListViewModel {
 
     func loadInitial() async {
         state = .loading
+        startConnectivityWatch()
         await loadFirstPage()
     }
 
@@ -135,24 +153,53 @@ final class LoanListViewModel {
         await loadFirstPage()
     }
 
+    /// Stale-while-revalidate: the stream may deliver a cached page first
+    /// (rendered instantly, labeled) and the fresh page after. A refresh
+    /// failure only becomes a full-screen error when there was NOTHING to
+    /// show — cached content downgrades it to a stale label.
     private func loadFirstPage() async {
         loadMoreTask?.cancel()
         do {
-            let page = try await loadLoans.initialPage()
-            pagesInFlight = []
-            highestLoadedPage = 1
-            hasMorePages = page.hasMore
-            loadedLoans = page.loans
-            state = page.loans.isEmpty ? .empty : .loaded
-            paginationFooter = page.hasMore ? .hidden : (page.loans.isEmpty ? .hidden : .endOfList)
-            recomputeSummary()
+            for try await snapshot in snapshots.loanPageSnapshots(page: 1) {
+                apply(firstPage: snapshot)
+            }
         } catch is CancellationError {
             // The screen went away mid-load; whatever state was on screen
             // stays — rendering an error nobody asked for is worse.
         } catch let error as DomainError {
-            state = .failed(error)
+            handleFirstPageFailure(error)
         } catch {
-            state = .failed(.unknown)
+            handleFirstPageFailure(.unknown)
+        }
+    }
+
+    private func apply(firstPage snapshot: Snapshot<LoanPage>) {
+        pagesInFlight = []
+        highestLoadedPage = 1
+        hasMorePages = snapshot.value.hasMore
+        loadedLoans = snapshot.value.loans
+        state = snapshot.value.loans.isEmpty ? .empty : .loaded
+        paginationFooter = snapshot.value.hasMore ? .hidden : (snapshot.value.loans.isEmpty ? .hidden : .endOfList)
+        freshness = snapshot.isFromCache ? .cached(fetchedAt: snapshot.fetchedAt) : .fresh
+        recomputeSummary()
+    }
+
+    private func handleFirstPageFailure(_ error: DomainError) {
+        if case .cached(let fetchedAt) = freshness, state == .loaded {
+            // Offline-with-cache: the list stays, honestly labeled.
+            freshness = .staleAfterFailedRefresh(fetchedAt: fetchedAt)
+        } else {
+            state = .failed(error)
+        }
+    }
+
+    private func startConnectivityWatch() {
+        guard connectivityTask == nil else { return }
+        connectivityTask = Task { [weak self, connectivity] in
+            for await status in connectivity.statusUpdates() {
+                guard let self, !Task.isCancelled else { return }
+                self.isOffline = status == .offline
+            }
         }
     }
 
@@ -274,5 +321,7 @@ final class LoanListViewModel {
         summaryTask?.cancel()
         searchTask?.cancel()
         loadMoreTask?.cancel()
+        connectivityTask?.cancel()
+        connectivityTask = nil
     }
 }

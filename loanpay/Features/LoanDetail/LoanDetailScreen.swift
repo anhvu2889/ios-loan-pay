@@ -59,19 +59,28 @@ struct LoanDetailScreen: View {
     }
 
     private func header(_ detail: LoanDetail) -> some View {
-        HStack(alignment: .top, spacing: 16) {
-            DeviceImageView(url: detail.loan.deviceImageURL)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(detail.loan.deviceModel)
-                    .font(.title3.bold())
-                StatusBadge(detail.loan.status)
-                Text("Financed since \(detail.startDate.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 16) {
+                DeviceImageView(url: detail.loan.deviceImageURL)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(detail.loan.deviceModel)
+                        .font(.title3.bold())
+                    StatusBadge(detail.loan.status)
+                    Text("Financed since \(detail.startDate.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
             }
-            Spacer()
+            .accessibilityElement(children: .combine)
+
+            switch viewModel.freshness {
+            case .fresh:
+                EmptyView()
+            case .cached(let fetchedAt), .staleAfterFailedRefresh(let fetchedAt):
+                FreshnessLabel(fetchedAt: fetchedAt, isFromCache: true)
+            }
         }
-        .accessibilityElement(children: .combine)
     }
 
     private func balanceCard(_ detail: LoanDetail) -> some View {
