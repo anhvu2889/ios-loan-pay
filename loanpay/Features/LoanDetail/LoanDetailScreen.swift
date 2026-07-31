@@ -4,13 +4,15 @@ import LoanPayFeatureKit
 
 struct LoanDetailScreen: View {
     @State private var viewModel: LoanDetailViewModel
+    let onMakePayment: () -> Void
 
-    init(viewModel: LoanDetailViewModel) {
+    init(viewModel: LoanDetailViewModel, onMakePayment: @escaping () -> Void) {
         // LANG: State(initialValue:) keeps ONE ViewModel per screen
         // identity even though navigationDestination re-invokes its builder
         // on ancestor re-renders — without this, every list update would
         // reset the detail screen to .loading.
         _viewModel = State(initialValue: viewModel)
+        self.onMakePayment = onMakePayment
     }
 
     var body: some View {
@@ -42,6 +44,13 @@ struct LoanDetailScreen: View {
             VStack(alignment: .leading, spacing: 16) {
                 header(detail)
                 balanceCard(detail)
+                if detail.loan.status != .paidOff {
+                    Button("Make a Payment") {
+                        onMakePayment()
+                    }
+                    .primaryButton()
+                    .accessibilityIdentifier(AccessibilityID.payButton)
+                }
                 chartsCard(detail)
             }
             .padding()
