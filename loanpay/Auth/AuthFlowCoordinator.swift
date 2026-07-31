@@ -27,6 +27,10 @@ final class AuthFlowCoordinator {
     private let session: SessionStore
     private let biometrics: any BiometricAuthenticating
     private let logger: any AppLogger
+    /// Runs whenever the session ends (logout or expiry): the composition
+    /// root hangs the PII sweep here — cached loan data leaves with the
+    /// user.
+    private let onSessionCleared: () async -> Void
     /// Token from a fresh login, held OUT of the session store until the
     /// biometric gate passes — an interrupted flow must not leave a usable
     /// session behind.
@@ -35,11 +39,13 @@ final class AuthFlowCoordinator {
     init(
         session: SessionStore,
         biometrics: any BiometricAuthenticating,
-        logger: any AppLogger
+        logger: any AppLogger,
+        onSessionCleared: @escaping () async -> Void = {}
     ) {
         self.session = session
         self.biometrics = biometrics
         self.logger = logger
+        self.onSessionCleared = onSessionCleared
     }
 
     func bootstrap() async {
@@ -84,6 +90,7 @@ final class AuthFlowCoordinator {
             logger.log(.error, category: .ui, "keychain clear failed during logout")
         }
         tokenAwaitingGate = nil
+        await onSessionCleared()
         phase = .loggedOut
     }
 
@@ -91,6 +98,7 @@ final class AuthFlowCoordinator {
     func sessionExpired() async {
         try? await session.clear()
         tokenAwaitingGate = nil
+        await onSessionCleared()
         phase = .loggedOut
     }
 }

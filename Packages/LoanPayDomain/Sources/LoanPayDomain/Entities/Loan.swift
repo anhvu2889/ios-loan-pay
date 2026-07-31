@@ -5,7 +5,7 @@ public typealias LoanID = Identifier<Loan>
 /// The list-level summary of a financed device loan. The full installment
 /// book lives on ``LoanDetail`` — list screens page through hundreds of
 /// these, so this type carries only what a row and the portfolio header need.
-public struct Loan: Identifiable, Hashable, Sendable {
+public struct Loan: Identifiable, Hashable, Sendable, Codable {
     public let id: LoanID
     /// The financed handset, e.g. "Galaxy A15". The device is the collateral.
     public let deviceModel: String

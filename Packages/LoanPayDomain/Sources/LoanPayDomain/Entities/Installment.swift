@@ -1,10 +1,10 @@
 import Foundation
 
-public struct Installment: Hashable, Sendable, Identifiable {
+public struct Installment: Hashable, Sendable, Identifiable, Codable {
     // LANG: `Status` is nested rather than a top-level `InstallmentStatus`
     // because it is meaningless outside an installment; nesting keeps the
     // namespace honest (`Installment.Status.paid` reads as the domain talks).
-    public enum Status: String, Sendable, Hashable {
+    public enum Status: String, Sendable, Hashable, Codable {
         case paid
         case due
         case overdue

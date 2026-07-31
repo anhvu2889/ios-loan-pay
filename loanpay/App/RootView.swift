@@ -1,5 +1,6 @@
 import SwiftUI
 import LoanPayDomain
+import LoanPayData
 import LoanPayFeatureKit
 import PaymentFeature
 
@@ -174,7 +175,12 @@ struct RootView: View {
             // screen underneath is now stale — landing on the refreshed
             // list is both the safety move and the honest one.
             coordinator.popToRoot()
-            Task { await listViewModel.refresh() }
+            Task {
+                // The payment changed balances server-side; cached loan
+                // data is now a lie and must not outlive the receipt.
+                await dependencies.cachedLoanRepository.invalidateLoanData()
+                await listViewModel.refresh()
+            }
 
         case .dismissed:
             break
@@ -209,7 +215,7 @@ struct RootView: View {
             LoanDetailScreen(
                 viewModel: LoanDetailViewModel(
                     loanID: id,
-                    repository: dependencies.loanRepository
+                    snapshots: dependencies.cachedLoanRepository
                 ),
                 onMakePayment: { coordinator.presentPayment(for: id) }
             )

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum LoanStatus: String, Sendable, Hashable, CaseIterable {
+public enum LoanStatus: String, Sendable, Hashable, CaseIterable, Codable {
     case active
     case overdue
     case paidOff
