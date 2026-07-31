@@ -104,19 +104,53 @@ struct GateSleeper: Sleeper {
     }
 }
 
+extension LoanDetail {
+    static func fixture(
+        id: String = "loan-1",
+        status: LoanStatus = .active,
+        installmentStatuses: [Installment.Status] = [.paid, .paid, .due, .upcoming]
+    ) -> LoanDetail {
+        let loan = Loan.fixture(id: id, status: status)
+        return LoanDetail(
+            loan: loan,
+            startDate: testDate,
+            installments: installmentStatuses.enumerated().map { index, status in
+                Installment(
+                    number: index + 1,
+                    dueDate: testDate.addingTimeInterval(Double(index) * 86_400 * 30),
+                    amount: loan.monthlyInstallment,
+                    status: status
+                )
+            },
+            balanceHistory: [
+                BalancePoint(date: testDate, balance: loan.principal),
+                BalancePoint(date: testDate.addingTimeInterval(86_400 * 30), balance: loan.outstandingBalance),
+            ]
+        )
+    }
+}
+
 actor ProgrammableLoanRepository: LoanRepository {
     private var pages: [Int: Result<LoanPage, DomainError>]
     private var pageGates: [Int: Gate] = [:]
     private(set) var pageRequests: [Int] = []
     private(set) var searchQueries: [String] = []
     private var searchResult: [Loan]
+    private var detailResult: Result<LoanDetail, DomainError>?
+    private(set) var detailRequests: [LoanID] = []
 
     init(
         pages: [Int: Result<LoanPage, DomainError>],
-        searchResult: [Loan] = []
+        searchResult: [Loan] = [],
+        detailResult: Result<LoanDetail, DomainError>? = nil
     ) {
         self.pages = pages
         self.searchResult = searchResult
+        self.detailResult = detailResult
+    }
+
+    func setDetailResult(_ result: Result<LoanDetail, DomainError>) {
+        detailResult = result
     }
 
     func setGate(_ gate: Gate, forPage page: Int) {
@@ -135,7 +169,9 @@ actor ProgrammableLoanRepository: LoanRepository {
     }
 
     func fetchLoanDetail(id: LoanID) async throws -> LoanDetail {
-        throw DomainError.unknown
+        detailRequests.append(id)
+        guard let detailResult else { throw DomainError.unknown }
+        return try detailResult.get()
     }
 
     /// Quotes answer with the loan's outstanding balance, mirroring the
