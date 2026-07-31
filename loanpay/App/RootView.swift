@@ -1,6 +1,14 @@
 import SwiftUI
 import LoanPayDomain
 import LoanPayFeatureKit
+import PaymentFeature
+
+/// Identifiable wrapper so `.sheet(item:)` can present a payment for a
+/// specific loan.
+private struct PaymentSheetContext: Identifiable {
+    let loanID: LoanID
+    var id: String { loanID.rawValue }
+}
 
 /// The composed application shell: auth phases outside, one
 /// NavigationStack over the coordinator's typed path inside.
@@ -10,6 +18,7 @@ struct RootView: View {
     @State private var authFlow: AuthFlowCoordinator
     @State private var listViewModel: LoanListViewModel
     @State private var isDebugMenuPresented = false
+    @State private var paymentSheet: PaymentSheetContext?
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -92,11 +101,49 @@ struct RootView: View {
                 destination(for: route)
             }
         }
+        .sheet(item: $paymentSheet) { context in
+            PaymentFeatureEntry.makeFlowView(
+                loanID: context.loanID,
+                loanRepository: dependencies.loanRepository,
+                paymentRepository: dependencies.paymentRepository,
+                flags: dependencies.flags,
+                analytics: dependencies.analytics,
+                logger: dependencies.logger,
+                onFinished: { outcome in
+                    handlePaymentOutcome(outcome)
+                }
+            )
+            .interactiveDismissDisabled(false)
+        }
         #if DEBUG
         .sheet(isPresented: $isDebugMenuPresented) {
             DebugMenuView(behavior: dependencies.mockBehavior, flags: dependencies.flags)
         }
         #endif
+    }
+
+    private func handlePaymentOutcome(_ outcome: PaymentOutcome) {
+        paymentSheet = nil
+        switch outcome {
+        case .success:
+            // FINTECH: unwind STRAIGHT to the list. The consumed
+            // confirmation must not be back-reachable, and the detail
+            // screen underneath is now stale — landing on the refreshed
+            // list is both the safety move and the honest one.
+            coordinator.popToRoot()
+            Task { await listViewModel.refresh() }
+
+        case .dismissed:
+            break
+
+        case .sessionExpired(let loanID):
+            // The server said the session is dead mid-payment. Tear down
+            // to re-auth, and remember where the user was headed — after
+            // login + biometric they land back on that loan.
+            coordinator.popToRoot()
+            coordinator.deferUntilAuthenticated(.loanDetail(loanID))
+            Task { await authFlow.sessionExpired() }
+        }
     }
 
     private var privacyCurtain: some View {
@@ -118,7 +165,8 @@ struct RootView: View {
                 viewModel: LoanDetailViewModel(
                     loanID: id,
                     repository: dependencies.loanRepository
-                )
+                ),
+                onMakePayment: { paymentSheet = PaymentSheetContext(loanID: id) }
             )
         case .applyForLoan:
             ContentUnavailableView(

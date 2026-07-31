@@ -27,6 +27,7 @@
 		AA0000000000000000000003 /* LoanPayDomain in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000002 /* LoanPayDomain */; };
 		AA0000000000000000000006 /* LoanPayData in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000005 /* LoanPayData */; };
 		AA0000000000000000000009 /* LoanPayFeatureKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000008 /* LoanPayFeatureKit */; };
+		AA000000000000000000000C /* PaymentFeature in Frameworks */ = {isa = PBXBuildFile; productRef = AA000000000000000000000B /* PaymentFeature */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,6 +62,7 @@
 				AA0000000000000000000003 /* LoanPayDomain in Frameworks */,
 				AA0000000000000000000006 /* LoanPayData in Frameworks */,
 				AA0000000000000000000009 /* LoanPayFeatureKit in Frameworks */,
+				AA000000000000000000000C /* PaymentFeature in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -124,6 +126,7 @@
 				AA0000000000000000000002 /* LoanPayDomain */,
 				AA0000000000000000000005 /* LoanPayData */,
 				AA0000000000000000000008 /* LoanPayFeatureKit */,
+				AA000000000000000000000B /* PaymentFeature */,
 			);
 			productName = loanpay;
 			productReference = B8815366301C480800E23881 /* loanpay.app */;
@@ -211,6 +214,7 @@
 				AA0000000000000000000001 /* XCLocalSwiftPackageReference "Packages/LoanPayDomain" */,
 				AA0000000000000000000004 /* XCLocalSwiftPackageReference "Packages/LoanPayData" */,
 				AA0000000000000000000007 /* XCLocalSwiftPackageReference "Packages/LoanPayFeatureKit" */,
+				AA000000000000000000000A /* XCLocalSwiftPackageReference "Packages/PaymentFeature" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B8815367301C480800E23881 /* Products */;
@@ -570,6 +574,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/LoanPayFeatureKit;
 		};
+		AA000000000000000000000A /* XCLocalSwiftPackageReference "Packages/PaymentFeature" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/PaymentFeature;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -584,6 +592,10 @@
 		AA0000000000000000000008 /* LoanPayFeatureKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LoanPayFeatureKit;
+		};
+		AA000000000000000000000B /* PaymentFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PaymentFeature;
 		};
 /* End XCSwiftPackageProductDependency section */
 
