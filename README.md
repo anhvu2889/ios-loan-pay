@@ -116,9 +116,9 @@ Scripts/                  mock server, secret scan, release snapshot/audit
 | Document | What's inside |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | The map, in under a minute |
-| [CODEBASE_GUIDE.md](CODEBASE_GUIDE.md) | Layer-by-layer guide: practices with proving files, failure modes, a language-decisions index |
+| [PARITY.md](PARITY.md) | Construct-by-construct map to the Android twin — where the platforms agree and where they pushed the designs apart |
+| [CODEBASE_GUIDE.md](CODEBASE_GUIDE.md) | Layer-by-layer guide: practices with proving files, a language-decisions index, adding a feature in 5 steps |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | As-built decisions, each with the scale at which it earns its cost |
 | [SECURITY.md](SECURITY.md) | Threat model, mitigations per threat, accepted risks, release checklist |
 | [RELEASING.md](RELEASING.md) | Trunk-based releases with flags and short-lived release branches |
-| [FINAL_REPORT.md](FINAL_REPORT.md) | Test tally, package graph, how to add a feature in 5 steps |
 | [Scripts/mock-server/README.md](Scripts/mock-server/README.md) | Running the local json-server backend |
