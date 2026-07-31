@@ -158,3 +158,18 @@ cancelled search firing its stale query; a found phone reading balances
 | Debounce | loanpay/Features/LoanList/LoanListViewModel.swift | `searchTextChanged` |
 | Pagination dedupe | same | `startLoadingPage` |
 | Continuation gating (tests) | loanpayTests/AppTestSupport.swift | `Gate` |
+
+## Adding a feature in 5 steps (touching only its package)
+
+1. `Packages/FeatureX/Package.swift` — depend on LoanPayDomain +
+   LoanPayFeatureKit (never Data, never a sibling feature).
+2. Write `FeatureXViewModel` (@Observable @MainActor final, private(set)
+   state enum; a synchronous `send(_:)` if the flow is complex) against
+   Domain contracts.
+3. Write views taking values + closures; add per-state #Previews using
+   FeatureKit's preview fakes.
+4. Expose ONE public `FeatureXEntry: FeatureEntry` (featureID, view
+   factory, `makeDeepLinkHandler()` for `loanpay://featurex/...`).
+5. Add a route case to `AppRoute` if it pushes, then register in
+   `FeatureRegistration.registerAll` — the single app-side line — and hand
+   it dependencies from `AppDependencies`.
