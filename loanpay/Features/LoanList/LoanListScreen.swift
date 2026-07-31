@@ -50,7 +50,7 @@ struct LoanListScreen: View {
         .modifier(SearchModifier(viewModel: viewModel))
     }
 
-    private var displayState: StateContainer<AnyView>.DisplayState {
+    private var displayState: ContentDisplayState {
         switch viewModel.state {
         case .loading:
             // The list renders its own skeleton (redacted real rows), so

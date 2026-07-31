@@ -43,12 +43,11 @@ struct RootView: View {
     private func destination(for route: AppRoute) -> some View {
         switch route {
         case .loanDetail(let id):
-            // Stand-in until the detail feature lands; the ROUTE is already
-            // real, so navigation code written now won't change.
-            ContentUnavailableView(
-                "Loan \(id.rawValue)",
-                systemImage: "doc.text",
-                description: Text("Detail screen coming in the next slice.")
+            LoanDetailScreen(
+                viewModel: LoanDetailViewModel(
+                    loanID: id,
+                    repository: dependencies.loanRepository
+                )
             )
         case .applyForLoan:
             ContentUnavailableView(
