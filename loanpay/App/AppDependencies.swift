@@ -41,7 +41,10 @@ final class AppDependencies {
         self.sessionStore = SessionStore(storage: KeychainWrapper())
         self.authService = StubAuthService(sleeper: sleeper)
         self.biometrics = LABiometricAuthenticator(logger: logger)
+        self.applicationRepository = MockLoanApplicationRepository(behavior: behavior)
     }
+
+    let applicationRepository: any LoanApplicationRepository
 
     func makeAuthFlowCoordinator() -> AuthFlowCoordinator {
         AuthFlowCoordinator(session: sessionStore, biometrics: biometrics, logger: logger)

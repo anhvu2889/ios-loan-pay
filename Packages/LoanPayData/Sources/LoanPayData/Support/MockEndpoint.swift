@@ -10,4 +10,5 @@ public enum MockEndpoint: String, CaseIterable, Sendable {
     case search
     case paymentMethods
     case submitPayment
+    case submitApplication
 }
