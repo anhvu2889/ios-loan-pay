@@ -1,0 +1,5 @@
+[
+  { "id": "pm-wallet-mpesa", "display_name": "M-PESA Wallet", "kind": "mobileWallet" },
+  { "id": "pm-card-4242", "display_name": "Visa •••• 4242", "kind": "bankCard" },
+  { "id": "pm-agent-cash", "display_name": "Cash at Agent", "kind": "cashAgent" }
+]
