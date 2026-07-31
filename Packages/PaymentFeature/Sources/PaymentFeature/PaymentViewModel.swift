@@ -239,6 +239,7 @@ public final class PaymentViewModel {
         case .notFound: "notFound"
         case .serverError: "serverError"
         case .invalidData: "invalidData"
+        case .pinningViolation: "pinningViolation"
         case .unknown: "unknown"
         }
     }

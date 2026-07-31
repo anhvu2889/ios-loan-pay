@@ -27,10 +27,9 @@ final class AuthFlowCoordinator {
     private let session: SessionStore
     private let biometrics: any BiometricAuthenticating
     private let logger: any AppLogger
-    /// Runs whenever the session ends (logout or expiry): the composition
-    /// root hangs the PII sweep here — cached loan data leaves with the
-    /// user.
-    private let onSessionCleared: () async -> Void
+    /// How long the app may sit backgrounded before the session dies.
+    private let inactivityTimeout: TimeInterval
+    private var backgroundedAt: Date?
     /// Token from a fresh login, held OUT of the session store until the
     /// biometric gate passes — an interrupted flow must not leave a usable
     /// session behind.
@@ -40,12 +39,12 @@ final class AuthFlowCoordinator {
         session: SessionStore,
         biometrics: any BiometricAuthenticating,
         logger: any AppLogger,
-        onSessionCleared: @escaping () async -> Void = {}
+        inactivityTimeout: TimeInterval = 5 * 60
     ) {
         self.session = session
         self.biometrics = biometrics
         self.logger = logger
-        self.onSessionCleared = onSessionCleared
+        self.inactivityTimeout = inactivityTimeout
     }
 
     func bootstrap() async {
@@ -81,24 +80,38 @@ final class AuthFlowCoordinator {
     }
 
     func logout() async {
-        do {
-            try await session.clear()
-        } catch {
-            // The durable delete failing must not trap the user in a
-            // session; memory is cleared regardless and the next launch
-            // retries the delete via save-over.
-            logger.log(.error, category: .ui, "keychain clear failed during logout")
-        }
         tokenAwaitingGate = nil
-        await onSessionCleared()
+        await session.clearAll()
         phase = .loggedOut
     }
 
     /// The payment flow reports 401s here; session is gone server-side.
     func sessionExpired() async {
-        try? await session.clear()
         tokenAwaitingGate = nil
-        await onSessionCleared()
+        await session.clearAll()
         phase = .loggedOut
+    }
+
+    // MARK: - Inactivity timeout
+
+    func sceneDidEnterBackground(at date: Date = Date()) {
+        guard phase == .authenticated else { return }
+        backgroundedAt = date
+    }
+
+    /// FINTECH: a phone that sat on a counter for five minutes is a phone
+    /// whose holder we no longer know. Past the timeout the session is
+    /// CLEARED (token + PII sweep, same path as a server-side 401), not
+    /// merely re-gated — and re-entry runs the full login + biometric
+    /// flow. Short foreground hops (< timeout) cost the user nothing.
+    func sceneDidBecomeActive(at date: Date = Date()) async {
+        defer { backgroundedAt = nil }
+        guard phase == .authenticated,
+              let backgroundedAt,
+              date.timeIntervalSince(backgroundedAt) >= inactivityTimeout else {
+            return
+        }
+        logger.log(.info, category: .ui, "session ended by inactivity timeout")
+        await sessionExpired()
     }
 }

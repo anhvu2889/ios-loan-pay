@@ -155,6 +155,62 @@ import LoanPayDomain
         #expect(receipt.remainingBalance == Money(amount: 120, currencyCode: "USD"))
     }
 
+    @Test func refusedPinSurfacesAsTheDistinctDomainError() async {
+        // The delegate refused the handshake (violation recorded); the
+        // transport error is a generic cancellation. The client must
+        // upgrade it to the DISTINCT error — telling a user to "retry on
+        // better wifi" is dangerous advice for an interception.
+        let pinning = CertificatePinning(pinsByHost: ["api.test.loanpay": ["pin"]])
+        let delegate = PinnedSessionDelegate(pinning: pinning, logger: SilentDataLogger())
+        delegate.recordViolationForTesting()
+
+        StubURLProtocol.handler = { _ in throw URLError(.cancelled) }
+        defer { StubURLProtocol.handler = nil }
+
+        let client = URLSessionAPIClient(
+            baseURL: URL(string: "https://api.test.loanpay")!,
+            session: StubURLProtocol.makeSession(),
+            tokenProvider: { nil },
+            logger: SilentDataLogger(),
+            pinningDelegate: delegate
+        )
+        let repository = RemoteLoanRepository(client: client)
+
+        await #expect(throws: DomainError.pinningViolation) {
+            _ = try await repository.fetchLoans(page: 1)
+        }
+    }
+
+    @Test func ordinaryCancellationWithoutViolationIsNotAPinningError() async {
+        let delegate = PinnedSessionDelegate(
+            pinning: CertificatePinning(pinsByHost: [:]),
+            logger: SilentDataLogger()
+        )
+
+        StubURLProtocol.handler = { _ in throw URLError(.cancelled) }
+        defer { StubURLProtocol.handler = nil }
+
+        let client = URLSessionAPIClient(
+            baseURL: URL(string: "https://api.test.loanpay")!,
+            session: StubURLProtocol.makeSession(),
+            tokenProvider: { nil },
+            logger: SilentDataLogger(),
+            pinningDelegate: delegate
+        )
+        let repository = RemoteLoanRepository(client: client)
+
+        // No violation was recorded → NOT a pinning error; the generic
+        // path maps it like any transport failure.
+        do {
+            _ = try await repository.fetchLoans(page: 1)
+            Issue.record("expected an error")
+        } catch let error as DomainError {
+            #expect(error != .pinningViolation)
+        } catch {
+            Issue.record("unexpected error type \(error)")
+        }
+    }
+
     @Test func missingTokenSendsNoAuthorizationHeader() async throws {
         let box = RequestBox()
         StubURLProtocol.handler = { [loanJSON] request in
