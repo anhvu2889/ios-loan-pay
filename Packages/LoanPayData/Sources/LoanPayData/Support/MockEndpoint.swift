@@ -11,4 +11,5 @@ public enum MockEndpoint: String, CaseIterable, Sendable {
     case paymentMethods
     case submitPayment
     case submitApplication
+    case supportCallback
 }
