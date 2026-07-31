@@ -1,22 +1,50 @@
 # LoanPay
 
-A teaching-grade, production-shaped iOS app for an emerging-markets fintech:
-phones bought on installment, with the phone itself as collateral. Borrowers
-see their loans, watch repayment progress, make installment payments, apply
-for new device loans, and request support callbacks — online or offline.
+A self-practice, portfolio iOS application built with the latest iOS
+technologies: a loan-management app where users track devices bought on
+installment, watch repayment progress, make payments, apply for new loans,
+and request support callbacks — online or offline.
 
-**The code is the curriculum.** Every non-obvious decision is explained at
-the site where it's made, with five comment tags:
+Built with **zero third-party dependencies**: Foundation, SwiftUI, and
+Swift Testing/XCTest only.
 
-| Tag | Carries |
-|---|---|
-| `// WHY:` | concurrency, cancellation, and actor decisions |
-| `// FINTECH:` | money, PII, and idempotency rules |
-| `// ARCH:` | layer boundaries and seams |
-| `// MODERN:` | new-API idioms, with the pre-2021 equivalent named |
-| `// LANG:` | language-level choices (`private(set)`, `final`, `some` vs `any`, …) |
+## Tech highlights
 
-Zero third-party dependencies: Foundation, SwiftUI, Swift Testing/XCTest only.
+- **Swift 6 concurrency throughout** — async/await, actors, `async let`,
+  `withThrowingTaskGroup` with capped parallelism, structured cancellation,
+  owned task handles. No GCD, no Combine.
+- **SwiftUI + Observation** — `@Observable` ViewModels, `NavigationStack`
+  over a typed route array with a real unwind API, `.searchable` with
+  suggestions and debounce, `ContentUnavailableView`, `.sensoryFeedback`,
+  `.privacySensitive` scene redaction.
+- **Swift Charts** — repayment progress (`BarMark` + `RuleMark`) and
+  balance-over-time (`LineMark` + `AreaMark`) with composed accessibility
+  summaries.
+- **State-machine payment flow** — one state enum, one synchronous
+  `send(_:)`, full idempotency-key lifecycle (double-tap-proof, safe
+  retry-after-timeout, session-expiry recovery), remote kill switch.
+- **Offline-first** — stale-while-revalidate cache (two-tier: memory over
+  protected files) via `AsyncThrowingStream`, persistent outbox with a
+  backoff drainer triggered by connectivity regain (`NWPathMonitor` →
+  `AsyncStream`), foregrounding, and `BGAppRefreshTask`.
+- **Security layer** — SPKI certificate pinning with backup-pin rotation,
+  Keychain-backed session, biometric gate (`LocalAuthentication`),
+  inactivity timeout, hardened deep-link parsing (fuzz-tested), one
+  logout sweep for all PII stores.
+- **Modular by SPM** — five local packages enforce the dependency graph;
+  feature packages expose a single entry each and never import siblings.
+- **195 tests, zero real sleeps** — Swift Testing first (parameterized
+  suites, `#expect`/`#require`), determinism via injected clocks and
+  continuation gating, plus an XCTest "Rosetta" target translating 13
+  representative tests between the two frameworks.
+- **Engineering hygiene** — GitHub Actions CI (build, all suites, SwiftLint
+  `--strict`, secret scan, release audit), trunk-based releases with
+  feature flags and snapshot manifests.
+
+Non-obvious decisions are documented in-line where they're made, tagged
+`// WHY:` (concurrency), `// FINTECH:` (money/PII/idempotency),
+`// ARCH:` (boundaries), `// MODERN:` (new API vs the old way), and
+`// LANG:` (language-level choices).
 
 ## Requirements
 
@@ -42,8 +70,8 @@ cd Scripts/mock-server && npx json-server db.json --port 3000
 ```
 
 then pick "Localhost server" in the debug menu (or launch with
-`-loanpay-environment remoteLocalhost`) and relaunch. See
-`Scripts/mock-server/README.md`.
+`-loanpay-environment remoteLocalhost`) and relaunch. See the
+[mock server README](Scripts/mock-server/README.md).
 
 **Deep links** (Simulator: `xcrun simctl openurl booted <url>`):
 `loanpay://loans/loan-001` · `loanpay://payment/loan-001/methods` ·
@@ -64,9 +92,9 @@ xcodebuild test -project loanpay.xcodeproj -scheme loanpay \
 # PaymentFeature (12) and SupportFeature (8): xcodebuild test from each package dir
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of it plus the secret scan,
-SwiftLint `--strict`, and a release audit (no `StubURLProtocol` symbol, no
-ATS exceptions in the Release product).
+CI ([ci.yml](.github/workflows/ci.yml)) runs all of it plus the secret
+scan, SwiftLint `--strict`, and a release audit (no `StubURLProtocol`
+symbol, no ATS exceptions in the Release product).
 
 ## Layout
 
@@ -83,11 +111,14 @@ Packages/
 Scripts/                  mock server, secret scan, release snapshot/audit
 ```
 
-## Read next
+## Documentation
 
-- `ARCHITECTURE.md` — the map, in under a minute
-- `CODEBASE_GUIDE.md` — layer-by-layer guide harvested from the teaching tags
-- `IMPLEMENTATION_PLAN.md` — as-built decisions, each with the scale at which it earns its cost
-- `SECURITY.md` — threat model, mitigations, accepted risks
-- `RELEASING.md` — trunk-based releases with flags and short-lived release branches
-- `FINAL_REPORT.md` — test tally, package graph, how to add a feature in 5 steps
+| Document | What's inside |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | The map, in under a minute |
+| [CODEBASE_GUIDE.md](CODEBASE_GUIDE.md) | Layer-by-layer guide: practices with proving files, failure modes, a language-decisions index |
+| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | As-built decisions, each with the scale at which it earns its cost |
+| [SECURITY.md](SECURITY.md) | Threat model, mitigations per threat, accepted risks, release checklist |
+| [RELEASING.md](RELEASING.md) | Trunk-based releases with flags and short-lived release branches |
+| [FINAL_REPORT.md](FINAL_REPORT.md) | Test tally, package graph, how to add a feature in 5 steps |
+| [Scripts/mock-server/README.md](Scripts/mock-server/README.md) | Running the local json-server backend |
