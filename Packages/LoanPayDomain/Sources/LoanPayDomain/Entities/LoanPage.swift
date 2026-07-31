@@ -1,7 +1,7 @@
 import Foundation
 
 /// One page of the loan list.
-public struct LoanPage: Hashable, Sendable {
+public struct LoanPage: Hashable, Sendable, Codable {
     /// 1-based page index as served; page 1 is the initial load.
     public let index: Int
     public let loans: [Loan]
