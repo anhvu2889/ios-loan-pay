@@ -8,6 +8,16 @@
 	     build-setting-generated Info.plist (GENERATE_INFOPLIST_FILE stays
 	     on); it exists because CFBundleURLTypes has no INFOPLIST_KEY_
 	     equivalent. -->
+	<!-- Background app refresh drains the outbox opportunistically (see
+	     OutboxBackgroundRefresh for the honest caveats vs WorkManager). -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.anhvu.loanpay.outbox-refresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

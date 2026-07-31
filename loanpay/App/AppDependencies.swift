@@ -49,7 +49,17 @@ final class AppDependencies {
         self.loanRepository = cachedRepository
         self.paymentRepository = MockPaymentRepository(behavior: behavior)
         self.connectivity = ConnectivityMonitor()
-        self.outbox = LoggedOutboxStub(logger: logger)
+        // The real outbox replaces the early stub: same OutboxEnqueuing
+        // seam, so no feature changed when persistence arrived.
+        let outboxStore = OutboxStore()
+        self.outboxStore = outboxStore
+        self.outbox = outboxStore
+        self.outboxDrainer = OutboxDrainer(
+            store: outboxStore,
+            deliverer: MockOutboxDelivery(behavior: behavior),
+            sleeper: sleeper,
+            logger: logger
+        )
 
         self.sessionStore = SessionStore(storage: KeychainWrapper())
         self.authService = StubAuthService(sleeper: sleeper)
@@ -61,6 +71,8 @@ final class AppDependencies {
     let cacheStore: CacheStore
     let cachedLoanRepository: CachedLoanRepository
     let connectivity: any ConnectivityMonitoring
+    let outboxStore: OutboxStore
+    let outboxDrainer: OutboxDrainer
 
     func makeAuthFlowCoordinator() -> AuthFlowCoordinator {
         AuthFlowCoordinator(

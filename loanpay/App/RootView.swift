@@ -3,6 +3,7 @@ import LoanPayDomain
 import LoanPayData
 import LoanPayFeatureKit
 import PaymentFeature
+import SupportFeature
 
 /// Identifiable wrapper so `.sheet(item:)` can present a payment for a
 /// specific loan.
@@ -19,6 +20,7 @@ struct RootView: View {
     @State private var authFlow: AuthFlowCoordinator
     @State private var listViewModel: LoanListViewModel
     @State private var dispatcher: DeepLinkDispatcher
+    @State private var outboxStatus: OutboxStatusViewModel
     @State private var isDebugMenuPresented = false
 
     @Environment(\.scenePhase) private var scenePhase
@@ -35,6 +37,10 @@ struct RootView: View {
         let dispatcher = DeepLinkDispatcher(logger: dependencies.logger)
         FeatureRegistration.registerAll(dispatcher: dispatcher)
         _dispatcher = State(initialValue: dispatcher)
+        _outboxStatus = State(initialValue: OutboxStatusViewModel(
+            store: dependencies.outboxStore,
+            drainer: dependencies.outboxDrainer
+        ))
     }
 
     var body: some View {
@@ -75,6 +81,16 @@ struct RootView: View {
         .onOpenURL { url in
             handleDeepLink(url)
         }
+        .task {
+            outboxStatus.startWatching()
+            // Connectivity-regain drain: queued writes leave the moment
+            // the network returns, not the next time the user pokes us.
+            for await status in dependencies.connectivity.statusUpdates() {
+                if status == .online {
+                    await dependencies.outboxDrainer.drainNow()
+                }
+            }
+        }
         .onChange(of: authFlow.phase) { _, newPhase in
             if newPhase == .authenticated,
                let intent = coordinator.consumePendingIntent() {
@@ -92,6 +108,13 @@ struct RootView: View {
                 onShowDebugMenu: { isDebugMenuPresented = true }
             )
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SyncBadge(
+                        pendingCount: outboxStatus.pendingCount,
+                        hasFailures: outboxStatus.hasFailures,
+                        onRetry: { outboxStatus.retry() }
+                    )
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         coordinator.show(.applyForLoan)
@@ -226,11 +249,10 @@ struct RootView: View {
                 // a submitted application is consumed, not revisitable.
                 onFinished: { coordinator.popToRoot() }
             )
-        case .supportCallback:
-            ContentUnavailableView(
-                "Support",
-                systemImage: "phone",
-                description: Text("Support flow coming in a later slice.")
+        case .supportCallback(let topic):
+            SupportFeatureEntry.makeCallbackView(
+                outbox: dependencies.outbox,
+                preselectedTopicID: topic
             )
         }
     }

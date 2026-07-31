@@ -1,6 +1,7 @@
 import Foundation
 import LoanPayFeatureKit
 import PaymentFeature
+import SupportFeature
 
 /// The one place features announce themselves to the app.
 ///
@@ -14,5 +15,6 @@ enum FeatureRegistration {
     static func registerAll(dispatcher: DeepLinkDispatcher) {
         dispatcher.register(featureID: "loans", handler: LoansDeepLinkHandler())
         dispatcher.register(featureID: PaymentFeatureEntry.featureID, handler: PaymentDeepLinkHandler())
+        dispatcher.register(featureID: SupportFeatureEntry.featureID, handler: SupportFeatureEntry.makeDeepLinkHandler())
     }
 }
